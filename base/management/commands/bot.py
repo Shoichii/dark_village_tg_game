@@ -1,6 +1,5 @@
 import asyncio
 
-from aiogram import BaseMiddleware, types
 from django.core.management.base import BaseCommand
 
 import bot.handlers

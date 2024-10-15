@@ -13,7 +13,8 @@ class User(models.Model):
     tg_id = models.BigIntegerField(verbose_name='Telegram ID')
     gender = models.CharField(
         max_length=255, choices=GENDER, verbose_name='Пол')
-    bought = models.BooleanField(default=False)
+    birthday = models.DateField(verbose_name='Дата рождения')
+    bought = models.BooleanField(default=False, verbose_name='Игра куплена')
 
     class Meta:
         verbose_name = 'Пользователь'

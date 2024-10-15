@@ -5,9 +5,9 @@ from base.models import Ability, Game, Role, User
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('tg_id', 'gender', 'bought',)
-    list_filter = ('tg_id', 'gender', 'bought',)
-    search_fields = ('tg_id', 'gender', 'bought',)
+    list_display = ('tg_id', 'gender', 'birthday', 'bought',)
+    list_filter = ('tg_id', 'gender', 'birthday', 'bought',)
+    search_fields = ('tg_id', 'gender', 'birthday', 'bought',)
 
 
 @admin.register(Role)
