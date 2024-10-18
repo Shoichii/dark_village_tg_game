@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 
-from aiogram import F, types
+from aiogram import types
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
@@ -10,6 +10,9 @@ from bot.loader import router
 from bot.utils.keaboards.common_kb import female_button, male_button, select_gender
 from bot.utils.other import date_pattern
 from bot.utils.states.ProfileDataState import ProfileDataState
+
+
+### команды в лс боту ###
 
 
 # старт
@@ -61,4 +64,4 @@ async def set_birthday_handler(msg: types.Message, state: FSMContext):
     birthday = datetime.strptime(msg.text, '%d.%m.%Y').date()
 
     await db_common.create_new_user(msg.from_user.id, gender, birthday)
-    await msg.answer('регистрация завершена')
+    await msg.answer('Регистрация завершена')

@@ -26,6 +26,6 @@ class AbilityAdmin(admin.ModelAdmin):
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = ('creater', 'status')
-    list_filter = ('creater', 'status')
-    search_fields = ('creater', 'status')
+    list_display = ('chat_id', 'creator', 'status')
+    list_filter = ('chat_id', 'creator', 'status')
+    search_fields = ('chat_id', 'creator', 'status')

@@ -76,12 +76,13 @@ class Game(models.Model):
         ('Night', 'Ночь'),
     )
 
-    creater = models.ForeignKey(
+    creator = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='Создатель игры', related_name='games_created')
     status = models.CharField(
         max_length=255, choices=STATUS, default='waiting', verbose_name='Статус')
     players = models.ManyToManyField(
         User, blank=True, verbose_name='Игроки', related_name='games_joined')
+    chat_id = models.BigIntegerField(verbose_name='ID чата')
 
     class Meta:
         verbose_name = 'Игра'
