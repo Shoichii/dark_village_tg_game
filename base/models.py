@@ -1,5 +1,6 @@
-from django.conf.locale import he
 from django.db import models
+
+from utils.common import CREATURES, STATUS
 
 
 GENDER = (
@@ -14,6 +15,10 @@ class User(models.Model):
     gender = models.CharField(
         max_length=255, choices=GENDER, verbose_name='Пол')
     birthday = models.DateField(verbose_name='Дата рождения')
+    player_role = models.ForeignKey('Role', on_delete=models.CASCADE,
+                                    verbose_name='Роль игрока', blank=True, null=True)
+    last_action = models.DateTimeField(
+        auto_now_add=True, verbose_name='Время последнего действие')
     bought = models.BooleanField(default=False, verbose_name='Игра куплена')
 
     class Meta:
@@ -29,6 +34,9 @@ class Role(models.Model):
     name = models.CharField(max_length=255, verbose_name='Название')
     gender = models.CharField(
         max_length=255, choices=GENDER, verbose_name='Пол')
+    creature = models.CharField(
+        max_length=255, choices=CREATURES, verbose_name='Существо/раса')
+    boss = models.BooleanField(default=False, verbose_name='Босс')
     image = models.ImageField(upload_to='roles/', verbose_name='Изображение')
     description = models.TextField(verbose_name='Описание')
     abilities = models.ManyToManyField(
@@ -51,7 +59,8 @@ class Ability(models.Model):
 
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(verbose_name='Описание')
-    passive = models.BooleanField(default=True, verbose_name='Пассивная')
+    passive = models.BooleanField(
+        default=True, verbose_name='Пассивная/Активная')
     damage = models.CharField(
         max_length=255, choices=DAMAGE_LEVEL, verbose_name='Урон')
     action_time = models.IntegerField(
@@ -67,14 +76,6 @@ class Ability(models.Model):
 
 class Game(models.Model):
     '''Игра'''
-    STATUS = (
-        ('waiting', 'Ожидание игроков'),
-        ('started', 'Игра началась'),
-        ('finished', 'Игра закончилась'),
-        ('canceled', 'Игра отменена'),
-        ('Day', 'День'),
-        ('Night', 'Ночь'),
-    )
 
     creator = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='Создатель игры', related_name='games_created')
@@ -83,6 +84,8 @@ class Game(models.Model):
     players = models.ManyToManyField(
         User, blank=True, verbose_name='Игроки', related_name='games_joined')
     chat_id = models.BigIntegerField(verbose_name='ID чата')
+    start_time = models.DateTimeField(
+        auto_now_add=True, verbose_name='Время начала игры')
 
     class Meta:
         verbose_name = 'Игра'
