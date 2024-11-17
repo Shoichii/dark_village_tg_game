@@ -3,6 +3,7 @@ from aiogram.filters import Command
 
 import bot.db.common as db_common
 from bot.loader import router, bot
+from bot.utils.handlers_funcs.c_commands_handlers import check_reg_and_commands
 from utils.common import MIN_PLAYERS, STATUS
 
 
@@ -13,19 +14,14 @@ from utils.common import MIN_PLAYERS, STATUS
 async def init_game_handler(msg: types.Message):
     '''Инициализация игр'''
 
-    # зареган ли пользователь
-    user = await db_common.get_user(msg.from_user.id)
-    if not user:
-        await msg.reply('Пожалуйста, сначала зарегистрируйся(пиши в лс)')
-
-    # если команда вызвана в лс у бота
-    if msg.chat.id == msg.from_user.id:
-        await msg.answer('Начать игру можно только в чате')
+    # проверка доступа к команде
+    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
+    if not accept:
         return
 
     # инициализация игры
     was_game_init = await db_common.initialize_game(msg.chat.id, msg.from_user.id)
-    if was_game_init == STATUS[0]:
+    if not was_game_init:
         await bot.send_message(msg.chat.id, text='Игра уже инициализирована')
         return
 
@@ -35,12 +31,29 @@ async def init_game_handler(msg: types.Message):
 @router.message(Command('stop_game'))
 async def stop_game_handler(msg: types.Message):
     '''Отмена игры'''
-    game_data = await db_common.check_creator_and_game(msg.from_user.id)
 
-    if not game_data:
-        await msg.answer('Остановить игру может только её создатель.')
+    # проверка доступа к команде
+    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
+    if not accept:
         return
-    await db_common.stop_game(game_data[1])
+
+    # информация об игре
+    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
+
+    # если игра не создана
+    if not game_info:
+        await msg.reply('Игра не создана')
+        return
+
+    # если команду отправил не создатель игры
+    user_in_chat = await bot.get_chat_member(msg.chat.id, game_info.get('creator_tg_id'))
+    user_in_chat = user_in_chat.status != 'left'
+    if msg.from_user.id != game_info.get('creator_tg_id') and user_in_chat:
+        await msg.reply('''Остановить игру может только её создатель.
+''')
+        return
+    # игра отменена
+    await db_common.stop_game(game_info.get('game'))
     await msg.answer('Игра отменена')
 
 
@@ -48,14 +61,32 @@ async def stop_game_handler(msg: types.Message):
 async def join_players(msg: types.Message):
     '''Присоединится к игре'''
 
-    # если команда вызвана в лс у бота
-    if msg.chat.id == msg.from_user.id:
-        await msg.answer('Команда выполняется только в общем чате')
+    # проверка доступа к команде
+    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
+    if not accept:
         return
 
-    players_count = await db_common.join_game(msg.chat.id, msg.from_user.id)
+    # если игры не создана
+    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
+
+    if not game_info:
+        await msg.reply('Игра не инициирована или уже началась')
+        return
+
+    # если команду отправил создатель игры
+    # или игрок который уже присоединился
+    found_player = [player for player in game_info.get('players')
+                    if player.tg_id == msg.from_user.id]
+    if game_info.get('creator_tg_id') == msg.from_user.id \
+            or found_player:
+        await msg.reply('Вы уже участник игры')
+        return
+
+    # проверка достаточности игроков для присоединения
+    await db_common.join_game(game_info.get('game'), game_info.get('player'))
     await msg.reply('Вы присоединился к игре')
-    print(players_count)
+
+    players_count = game_info.get('players_count') + 1
     if players_count >= MIN_PLAYERS:
         await msg.answer(f'''Набралось минимальное число игроков.
 Всего присоединилось: {players_count}
@@ -66,12 +97,35 @@ async def join_players(msg: types.Message):
 async def start_game_handler(msg: types.Message):
     '''Начать игру'''
 
-    start = await db_common.start_game(msg.from_user.id)
-    if not start:
-        await msg.answer('Начать игру может только её создатель.')
+    # проверка доступа к команде
+    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
+    if not accept:
         return
-    if isinstance(start, int):
-        await msg.answer(f'''Присоединилось недостаточно игроков - {start}.
+
+    # информация об игре
+    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
+
+    # если игра не создана
+    if not game_info:
+        await msg.reply('Игра не создана')
+        return
+
+    if game_info.get('status') == STATUS[1][0]:
+        await msg.reply('Игра уже началась')
+        return
+
+    # проверка кто отправил команду и создана ли игра
+    if msg.from_user.id != game_info.get('creator_tg_id'):
+        await msg.reply('Начать игру может только её создатель.')
+        return
+
+    # проверка достаточности игроков для начала игры
+    enough_players = game_info.get('players_count')
+    if enough_players < MIN_PLAYERS:
+        await msg.answer(f'''Присоединилось недостаточно игроков - {enough_players}.
 Необходимо минимум {MIN_PLAYERS}''')
         return
+
+    # начало игры и расдача ролей
+    await db_common.start_game(game_info.get('game'))
     await msg.answer('Игра началась')

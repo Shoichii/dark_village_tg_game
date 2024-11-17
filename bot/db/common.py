@@ -1,9 +1,12 @@
+from datetime import datetime
 from asgiref.sync import sync_to_async
 from base.models import User, Game, Role
 from utils.common import CREATURES, MIN_PLAYERS, STATUS
 from random import randint
 from django.db import transaction
 
+
+# информация для общего чата, которая видна всем
 
 @sync_to_async
 def get_user(tg_id):
@@ -35,58 +38,24 @@ def initialize_game(chat_tg_id, user_tg_id):
 
 
 @sync_to_async
-def check_creator_and_game(creator_tg_id):
-    '''Проверка является ли пользователь создателем игры
-    и запущена ли вообще игра'''
-    creator = User.objects.filter(tg_id=creator_tg_id).first()
-    game = Game.objects.filter(creator=creator).exclude(
-        status=STATUS[3][0]).first()
-    if not game or (game and game.creator.tg_id != creator.tg_id):
-        return None
-    return creator, game
-
-
-@sync_to_async
 def stop_game(game):
     '''Отмена игры'''
     game.status = STATUS[3][0]
+    game.end_time = datetime.now()
     game.save()
     return True
 
 
 @sync_to_async
-def join_game(chat_tg_id, player_tg_id):
+def join_game(game, player):
     '''Присоединится к игре'''
-    game = Game.objects.filter(chat_id=chat_tg_id).exclude(
-        status=STATUS[3][0]).first()
-    if game:
-        user = User.objects.filter(tg_id=player_tg_id).first()
-        game.players.add(user)
-        game.save()
-    return len(game.players.all())
+    game.players.add(player)
+    game.save()
 
 
 @sync_to_async
-def check_enough_players(creator_tg_id):
-    '''Проверка достаточности игроков'''
-    creator = User.objects.filter(tg_id=creator_tg_id).first()
-    game = Game.objects.filter(creator=creator).first()
-    if not game or (game and game.creator.tg_id != creator_tg_id):
-        return False
-    return game.players.count() >= MIN_PLAYERS
-
-
-@sync_to_async
-def start_game(creator_tg_id):
+def start_game(game):
     '''Начать игру'''
-    creator = User.objects.filter(tg_id=creator_tg_id).first()
-    game = Game.objects.filter(creator=creator).first()
-
-    # определяем можно ли начать игру
-    if not game or (game and game.creator.tg_id != creator_tg_id):
-        return False
-    if game.players.count() < MIN_PLAYERS:
-        return game.players.count()
 
     # раздача ролей
     roles = Role.objects.filter(creature=CREATURES[0][0]).all()
@@ -100,6 +69,49 @@ def start_game(creator_tg_id):
                 boss=False, gender=player.gender).first()
         player.save()
 
-    game.status = 'started'
+    game.status = STATUS[1][0]
     game.save()
     return True
+
+
+@sync_to_async
+def get_game_info(**kwargs):
+    '''Информация о игре
+
+    kwargs:
+
+    chat_tg_id: int,
+    player_tg_id: int,
+    or
+    game: Game,
+    player: User,
+
+    '''
+
+    chat_tg_id = kwargs.get('chat_tg_id')
+    player_tg_id = kwargs.get('player_tg_id')
+    game = kwargs.get('game')
+    player = kwargs.get('player')
+
+    if not player and not game:
+        player = User.objects.filter(tg_id=player_tg_id).first()
+        game = Game.objects.filter(chat_id=chat_tg_id).exclude(
+            status=STATUS[3][0]).first()
+
+    if not game:
+        return None
+
+    return {
+        'game': game,
+        'player': player,
+        'creator_tg_id': game.creator.tg_id,
+        'players': [
+            player
+            for player in game.players.all()
+        ],
+        'status': game.status,
+        'start_time': game.start_time,
+        'end_time': game.end_time,
+        'chat_id': game.chat_id,
+        'players_count': game.players.count(),
+    }

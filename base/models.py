@@ -86,6 +86,8 @@ class Game(models.Model):
     chat_id = models.BigIntegerField(verbose_name='ID чата')
     start_time = models.DateTimeField(
         auto_now_add=True, verbose_name='Время начала игры')
+    end_time = models.DateTimeField(
+        blank=True, null=True, verbose_name='Время окончания игры')
 
     class Meta:
         verbose_name = 'Игра'

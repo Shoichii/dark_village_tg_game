@@ -65,3 +65,4 @@ async def set_birthday_handler(msg: types.Message, state: FSMContext):
 
     await db_common.create_new_user(msg.from_user.id, gender, birthday)
     await msg.answer('Регистрация завершена')
+    await state.clear()
