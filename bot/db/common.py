@@ -1,7 +1,7 @@
 from datetime import datetime
 from asgiref.sync import sync_to_async
 from base.models import User, Game, Role
-from utils.common import CREATURES, MIN_PLAYERS, STATUS
+from utils.consts import CREATURES, MIN_PLAYERS, STATUS
 from random import randint
 from django.db import transaction
 
@@ -60,10 +60,12 @@ def start_game(game):
     # раздача ролей
     roles = Role.objects.filter(creature=CREATURES[0][0]).all()
     boss_number = randint(0, len(game.players.all()) - 1)
+    human_boss = None
     for i, player in enumerate(game.players.all()):
         if i == boss_number:
             player.player_role = roles.filter(
                 boss=True, gender=player.gender).first()
+            human_boss = player
         else:
             player.player_role = roles.filter(
                 boss=False, gender=player.gender).first()
@@ -71,7 +73,7 @@ def start_game(game):
 
     game.status = STATUS[1][0]
     game.save()
-    return True
+    return human_boss
 
 
 @sync_to_async
@@ -115,3 +117,17 @@ def get_game_info(**kwargs):
         'chat_id': game.chat_id,
         'players_count': game.players.count(),
     }
+
+
+@sync_to_async
+def delete_player(chat_id, player_tg_id):
+    '''Удаление игрока из игры'''
+    player = User.objects.filter(tg_id=player_tg_id).first()
+    game = Game.objects.filter(chat_id=chat_id, players=player).exclude(
+        status=STATUS[3][0]).first()
+
+    if game:
+        game.players.remove(player)
+        game.save()
+        return True
+    return False

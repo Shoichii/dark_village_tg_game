@@ -1,6 +1,6 @@
 from django.db import models
 
-from utils.common import CREATURES, STATUS
+from utils.consts import CREATURES, STATUS
 
 
 GENDER = (
@@ -47,7 +47,7 @@ class Role(models.Model):
         verbose_name_plural = 'Роли'
 
     def __str__(self):
-        return self.name
+        return f'{self.name} {self.gender}'
 
 
 class Ability(models.Model):

@@ -1,4 +1,5 @@
 import bot.db.common as db_common
+from bot.loader import bot
 
 
 async def check_reg_and_commands(*args):
@@ -20,3 +21,32 @@ async def check_reg_and_commands(*args):
         accept = False
 
     return accept
+
+
+async def check_access(msg, text='Игра не создана'):
+    '''Некоторые проверки по доступу к командам'''
+
+    # проверка доступа к команде
+    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
+    if not accept:
+        return False, None
+
+    # информация об игре
+    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
+
+    # если игра не создана
+    if not game_info:
+        await msg.reply(text)
+        return False, None
+
+    return True, game_info
+
+
+async def get_player_info(tg_id):
+    '''Информация о игроке из телеграма по tg_id'''
+    try:
+        player = await bot.get_chat(tg_id)
+        return f'<a href="tg://user?id={player.id}">{player.full_name}</a>'
+    except Exception as e:
+        print(e)
+        return 'Игрок не найден'

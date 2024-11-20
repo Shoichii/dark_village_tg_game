@@ -3,8 +3,8 @@ from aiogram.filters import Command
 
 import bot.db.common as db_common
 from bot.loader import router, bot
-from bot.utils.handlers_funcs.c_commands_handlers import check_reg_and_commands
-from utils.common import MIN_PLAYERS, STATUS
+from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_info
+from utils.consts import MIN_PLAYERS, STATUS
 
 
 ### команды в чат ###
@@ -32,18 +32,12 @@ async def init_game_handler(msg: types.Message):
 async def stop_game_handler(msg: types.Message):
     '''Отмена игры'''
 
-    # проверка доступа к команде
-    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
-    if not accept:
+    # проверка взаимодействия и доступа
+    access = await check_access(msg)
+    if not access[0]:
         return
-
     # информация об игре
-    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
-
-    # если игра не создана
-    if not game_info:
-        await msg.reply('Игра не создана')
-        return
+    game_info = access[1]
 
     # если команду отправил не создатель игры
     user_in_chat = await bot.get_chat_member(msg.chat.id, game_info.get('creator_tg_id'))
@@ -61,17 +55,12 @@ async def stop_game_handler(msg: types.Message):
 async def join_players(msg: types.Message):
     '''Присоединится к игре'''
 
-    # проверка доступа к команде
-    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
-    if not accept:
+    # проверка взаимодействия и доступа
+    access = await check_access(msg, 'Игра не инициирована или уже началась')
+    if not access[0]:
         return
-
-    # если игры не создана
-    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
-
-    if not game_info:
-        await msg.reply('Игра не инициирована или уже началась')
-        return
+    # информация об игре
+    game_info = access[1]
 
     # если команду отправил создатель игры
     # или игрок который уже присоединился
@@ -97,18 +86,12 @@ async def join_players(msg: types.Message):
 async def start_game_handler(msg: types.Message):
     '''Начать игру'''
 
-    # проверка доступа к команде
-    accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
-    if not accept:
+    # проверка взаимодействия и доступа
+    access = await check_access(msg)
+    if not access[0]:
         return
-
     # информация об игре
-    game_info = await db_common.get_game_info(chat_tg_id=msg.chat.id, player_tg_id=msg.from_user.id)
-
-    # если игра не создана
-    if not game_info:
-        await msg.reply('Игра не создана')
-        return
+    game_info = access[1]
 
     if game_info.get('status') == STATUS[1][0]:
         await msg.reply('Игра уже началась')
@@ -127,5 +110,57 @@ async def start_game_handler(msg: types.Message):
         return
 
     # начало игры и расдача ролей
-    await db_common.start_game(game_info.get('game'))
-    await msg.answer('Игра началась')
+    human_boss = await db_common.start_game(game_info.get('game'))
+    human_boss_name = await get_player_info(human_boss.tg_id)
+    await msg.answer(f'Игра началась\n\nСтароста деревни - {human_boss_name}')
+
+
+@router.message(Command('quit_game'))
+async def quit_game_handler(msg: types.Message):
+    '''Выйти из игры'''
+
+    # проверка взаимодействия и доступа
+    access = await check_access(msg)
+    if not access[0]:
+        return
+    # информация об игре
+    game_info = access[1]
+
+    # проверка кто отправил команду и создана ли игра
+    if msg.from_user.id == game_info.get('creator_tg_id'):
+        await msg.reply('Создатель игры не может её покинуть до её окончания.')
+        return
+
+    # удаление игрока
+    was_delete = await db_common.delete_player(msg.chat.id, msg.from_user.id)
+    if was_delete:
+        await msg.reply('Вы покинули игру')
+    else:
+        await msg.reply('Вы не состоите в игре')
+
+
+@router.message(Command('list_players'))
+async def list_players_handler(msg: types.Message):
+    '''Посмотреть список игроков в игре'''
+    # проверка взаимодействия и доступа
+    access = await check_access(msg)
+    if not access[0]:
+        return
+    # информация об игре
+    game_info = access[1]
+
+    # формирование списка
+    players = game_info.get('players')
+    players_info_list = 'Игроки в игре: \n\n'
+    for i, player in enumerate(players):
+        try:
+            player_name = await get_player_info(player.tg_id)
+            creator = '- инициатор игры' if player.id == game_info.get(
+                'creator_tg_id') else ''
+            players_info_list += f'{i + 1}) {player_name} {creator}\n'
+        except Exception as e:
+            print(f"Не удалось получить данные пользователя: {e}")
+            return None
+
+    # отправка списка игроков в чате
+    await bot.send_message(msg.chat.id, players_info_list, parse_mode="HTML")
