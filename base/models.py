@@ -46,8 +46,12 @@ class Role(models.Model):
         verbose_name = 'Роль'
         verbose_name_plural = 'Роли'
 
+    @property
+    def creature_display(self):
+        return dict(CREATURES).get(self.creature)
+
     def __str__(self):
-        return f'{self.name} {self.gender}'
+        return f'{self.name} {self.get_gender_display()}'
 
 
 class Ability(models.Model):
@@ -110,3 +114,20 @@ class Achievement(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class StoryText(models.Model):
+    '''Сюжетный текст'''
+    about_game_text = models.TextField(
+        verbose_name='Об игре', blank=True, null=True)
+    rules_text = models.TextField(
+        verbose_name='Правила', blank=True, null=True)
+    start_game_text = models.TextField(
+        verbose_name='Текст при старте игры', blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Сюжетный текст'
+        verbose_name_plural = 'Сюжетные тексты'
+
+    def __str__(self):
+        return 'Сюжетный текст'

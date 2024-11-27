@@ -14,6 +14,8 @@ from bot.utils.states.ProfileDataState import ProfileDataState
 
 ### команды в лс боту ###
 
+# start - главная команда. первый раз применяется
+# для регистрации
 
 # старт
 @router.message(Command('start'), StateFilter('*'))

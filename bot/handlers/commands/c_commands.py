@@ -3,11 +3,20 @@ from aiogram.filters import Command
 
 import bot.db.common as db_common
 from bot.loader import router, bot
-from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_info
+from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_info, get_role_info
 from utils.consts import MIN_PLAYERS, STATUS
 
 
 ### команды в чат ###
+
+# init_game - инициировать игру
+# join_game - присоединится к игре
+# start_game - начать игру
+# stop_game - остановить игру
+# quit_game - покинуть игру
+# list_players - список игроков в игре
+# rules - правила
+# about - информация об игре
 
 
 @router.message(Command('init_game'))
@@ -110,9 +119,25 @@ async def start_game_handler(msg: types.Message):
         return
 
     # начало игры и расдача ролей
-    human_boss = await db_common.start_game(game_info.get('game'))
-    human_boss_name = await get_player_info(human_boss.tg_id)
+    roles_data = await db_common.start_game(game_info.get('game'))
+
+    # сообщаем старосте деревни его роль
+    human_boss_decription, \
+        human_boss_photo, \
+        human_boss_tg_id = await get_role_info(
+            roles_data.get('human_boss'),
+            roles_data.get('human_boss_abilities'))
+    await bot.send_photo(chat_id=human_boss_tg_id, photo=human_boss_photo, caption=human_boss_decription)
+    human_boss_name = await get_player_info(human_boss_tg_id)
     await msg.answer(f'Игра началась\n\nСтароста деревни - {human_boss_name}')
+
+    # сообщаем главному вампиру его роль
+    vampire_boss_decription, \
+        vampire_boss_photo, \
+        vampire_boss_tg_id = await get_role_info(
+            roles_data.get('vampire_boss'),
+            roles_data.get('vampire_boss_abilities'))
+    await bot.send_photo(chat_id=vampire_boss_tg_id, photo=vampire_boss_photo, caption=vampire_boss_decription)
 
 
 @router.message(Command('quit_game'))
@@ -164,3 +189,17 @@ async def list_players_handler(msg: types.Message):
 
     # отправка списка игроков в чате
     await bot.send_message(msg.chat.id, players_info_list, parse_mode="HTML")
+
+
+@router.message(Command('rules'))
+async def rules_handler(msg: types.Message):
+    '''Показать правила'''
+    rules = await db_common.get_rules()
+    await msg.answer(rules)
+
+
+@router.message(Command('about'))
+async def about_handler(msg: types.Message):
+    '''Показать инфу об игре'''
+    about = await db_common.get_about()
+    await msg.answer(about)

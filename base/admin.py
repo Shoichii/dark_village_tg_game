@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from base.models import Ability, Game, Role, User
+from base.models import Ability, Game, Role, User, StoryText
 
 
 @admin.register(User)
@@ -35,3 +35,8 @@ class GameAdmin(admin.ModelAdmin):
     list_display = ('chat_id', 'creator', 'status', 'start_time', 'end_time')
     list_filter = ('chat_id', 'creator', 'status', 'start_time', 'end_time')
     search_fields = ('chat_id', 'creator', 'status', 'start_time', 'end_time')
+
+
+@admin.register(StoryText)
+class StoryTextAdmin(admin.ModelAdmin):
+    list_display = ('about_game_text',)

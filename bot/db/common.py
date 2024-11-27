@@ -1,7 +1,8 @@
 from datetime import datetime
 from asgiref.sync import sync_to_async
-from base.models import User, Game, Role
-from utils.consts import CREATURES, MIN_PLAYERS, STATUS
+from base.models import User, Game, Role, StoryText
+from bot.utils.db import get_two_distinct_random_numbers
+from utils.consts import CREATURES, STATUS
 from random import randint
 from django.db import transaction
 
@@ -58,22 +59,45 @@ def start_game(game):
     '''Начать игру'''
 
     # раздача ролей
-    roles = Role.objects.filter(creature=CREATURES[0][0]).all()
-    boss_number = randint(0, len(game.players.all()) - 1)
+    roles = Role.objects.all()
+    boss_number, vampire_number = get_two_distinct_random_numbers(
+        len(game.players.all()) - 1)
     human_boss = None
+    vampire_boss = None
+    players_list = []
     for i, player in enumerate(game.players.all()):
         if i == boss_number:
             player.player_role = roles.filter(
-                boss=True, gender=player.gender).first()
+                boss=True, gender=player.gender, creature=CREATURES[0][0]).first()
             human_boss = player
+        elif i == vampire_number:
+            player.player_role = roles.filter(
+                boss=True, gender=player.gender, creature=CREATURES[1][0]).first()
+            vampire_boss = player
         else:
             player.player_role = roles.filter(
                 boss=False, gender=player.gender).first()
+            players_list.append(player)
         player.save()
 
     game.status = STATUS[1][0]
     game.save()
-    return human_boss
+    players = []
+    if players_list:
+        for player in players_list:
+            players.append({
+                'player': player,
+                'abilities': [ability for ability in player.player_role.abilities.all()]
+            })
+
+    data = {
+        'human_boss': human_boss,
+        'human_boss_abilities': [ability for ability in human_boss.player_role.abilities.all()],
+        'vampire_boss': vampire_boss,
+        'vampire_boss_abilities': [ability for ability in vampire_boss.player_role.abilities.all()],
+        'players': players,
+    }
+    return data
 
 
 @sync_to_async
@@ -131,3 +155,17 @@ def delete_player(chat_id, player_tg_id):
         game.save()
         return True
     return False
+
+
+@sync_to_async
+def get_rules():
+    '''Получить правила игры'''
+    rules = StoryText.objects.first()
+    return rules.rules_text if rules else None
+
+
+@sync_to_async
+def get_about():
+    '''Получить инфу об игре'''
+    about = StoryText.objects.first()
+    return about.about_game_text if about else None
