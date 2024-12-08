@@ -3,7 +3,6 @@ from asgiref.sync import sync_to_async
 from base.models import User, Game, Role, StoryText
 from bot.utils.db import get_two_distinct_random_numbers
 from utils.consts import CREATURES, STATUS
-from random import randint
 from django.db import transaction
 
 
@@ -27,7 +26,7 @@ def initialize_game(chat_tg_id, user_tg_id):
     '''Инициализация игры'''
     user = User.objects.filter(tg_id=user_tg_id).first()
     game = Game.objects.filter(chat_id=chat_tg_id).exclude(
-        status=STATUS[3][0]).first()
+        status=STATUS[2][0]).first()
 
     if game:
         return False
@@ -41,7 +40,7 @@ def initialize_game(chat_tg_id, user_tg_id):
 @sync_to_async
 def stop_game(game):
     '''Отмена игры'''
-    game.status = STATUS[3][0]
+    game.status = STATUS[2][0]
     game.end_time = datetime.now()
     game.save()
     return True
@@ -80,7 +79,7 @@ def start_game(game):
             players_list.append(player)
         player.save()
 
-    game.status = STATUS[1][0]
+    game.status = STATUS[4][0]
     game.save()
     players = []
     if players_list:
@@ -122,7 +121,7 @@ def get_game_info(**kwargs):
     if not player and not game:
         player = User.objects.filter(tg_id=player_tg_id).first()
         game = Game.objects.filter(chat_id=chat_tg_id).exclude(
-            status=STATUS[3][0]).first()
+            status__in=[STATUS[1][0], STATUS[2][0]]).first()
 
     if not game:
         return None
@@ -148,7 +147,7 @@ def delete_player(chat_id, player_tg_id):
     '''Удаление игрока из игры'''
     player = User.objects.filter(tg_id=player_tg_id).first()
     game = Game.objects.filter(chat_id=chat_id, players=player).exclude(
-        status=STATUS[3][0]).first()
+        status=STATUS[2][0]).first()
 
     if game:
         game.players.remove(player)
@@ -160,12 +159,26 @@ def delete_player(chat_id, player_tg_id):
 @sync_to_async
 def get_rules():
     '''Получить правила игры'''
-    rules = StoryText.objects.first()
-    return rules.rules_text if rules else None
+    story_text = StoryText.objects.first()
+    return story_text.rules_text if story_text else None
 
 
 @sync_to_async
 def get_about():
     '''Получить инфу об игре'''
-    about = StoryText.objects.first()
-    return about.about_game_text if about else None
+    story_text = StoryText.objects.first()
+    return story_text.about_game_text if story_text else None
+
+
+@sync_to_async
+def get_start_text():
+    '''Получить текст при старте игры'''
+    story_text = StoryText.objects.first()
+    return story_text.start_game_text if story_text else None
+
+
+@sync_to_async
+def get_night():
+    '''Получить текст наступления ночи'''
+    story_text = StoryText.objects.first()
+    return story_text.night if story_text else None

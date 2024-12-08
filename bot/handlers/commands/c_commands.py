@@ -1,9 +1,11 @@
+import asyncio
 from aiogram import types
 from aiogram.filters import Command
 
 import bot.db.common as db_common
 from bot.loader import router, bot
 from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_info, get_role_info
+from bot.utils.handlers_funcs.p_commands_handlers import send_photo_to_pm
 from utils.consts import MIN_PLAYERS, STATUS
 
 
@@ -102,7 +104,8 @@ async def start_game_handler(msg: types.Message):
     # информация об игре
     game_info = access[1]
 
-    if game_info.get('status') == STATUS[1][0]:
+    if game_info.get('status') == STATUS[3][0] or\
+            game_info.get('status') == STATUS[4][0]:
         await msg.reply('Игра уже началась')
         return
 
@@ -127,7 +130,7 @@ async def start_game_handler(msg: types.Message):
         human_boss_tg_id = await get_role_info(
             roles_data.get('human_boss'),
             roles_data.get('human_boss_abilities'))
-    await bot.send_photo(chat_id=human_boss_tg_id, photo=human_boss_photo, caption=human_boss_decription)
+    await send_photo_to_pm(human_boss_tg_id, human_boss_photo, caption=human_boss_decription)
     human_boss_name = await get_player_info(human_boss_tg_id)
     await msg.answer(f'Игра началась\n\nСтароста деревни - {human_boss_name}')
 
@@ -137,7 +140,15 @@ async def start_game_handler(msg: types.Message):
         vampire_boss_tg_id = await get_role_info(
             roles_data.get('vampire_boss'),
             roles_data.get('vampire_boss_abilities'))
-    await bot.send_photo(chat_id=vampire_boss_tg_id, photo=vampire_boss_photo, caption=vampire_boss_decription)
+    await send_photo_to_pm(vampire_boss_tg_id, vampire_boss_photo, caption=vampire_boss_decription)
+
+    # вступительные тексты
+    start_game_text = await db_common.get_start_text()
+    night_text = await db_common.get_night()
+    await asyncio.sleep(1)
+    await msg.answer(start_game_text)
+    await asyncio.sleep(1)
+    await msg.answer(night_text)
 
 
 @router.message(Command('quit_game'))

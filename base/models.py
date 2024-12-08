@@ -124,6 +124,10 @@ class StoryText(models.Model):
         verbose_name='Правила', blank=True, null=True)
     start_game_text = models.TextField(
         verbose_name='Текст при старте игры', blank=True, null=True)
+    night = models.CharField(
+        max_length=255, verbose_name='Наступление ночи', blank=True, null=True)
+    day = models.CharField(
+        max_length=255, verbose_name='Наступление дня', blank=True, null=True)
 
     class Meta:
         verbose_name = 'Сюжетный текст'

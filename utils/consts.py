@@ -4,7 +4,6 @@ from asyncio import create_subprocess_exec
 
 STATUS = (
     ('waiting', 'Ожидание игроков'),
-    ('started', 'Игра началась'),
     ('finished', 'Игра закончилась'),
     ('canceled', 'Игра отменена'),
     ('Day', 'День'),
