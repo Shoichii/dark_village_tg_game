@@ -56,26 +56,16 @@ class Role(models.Model):
 
 class Ability(models.Model):
     '''Способность'''
-    DAMAGE_LEVEL = (
-        ('full', 'Полный'),
-        ('half', 'Половина'),
-    )
-
+    key = models.CharField(max_length=255, verbose_name='Ключ')
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(verbose_name='Описание')
-    passive = models.BooleanField(
-        default=True, verbose_name='Пассивная/Активная')
-    damage = models.CharField(
-        max_length=255, choices=DAMAGE_LEVEL, verbose_name='Урон')
-    action_time = models.IntegerField(
-        default=1, verbose_name='Время действия', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Способность'
         verbose_name_plural = 'Способности'
 
     def __str__(self):
-        return self.name
+        return f'{self.key} - {self.name}'
 
 
 class Game(models.Model):
@@ -116,22 +106,51 @@ class Achievement(models.Model):
         return self.name
 
 
-class StoryText(models.Model):
-    '''Сюжетный текст'''
-    about_game_text = models.TextField(
-        verbose_name='Об игре', blank=True, null=True)
-    rules_text = models.TextField(
-        verbose_name='Правила', blank=True, null=True)
-    start_game_text = models.TextField(
-        verbose_name='Текст при старте игры', blank=True, null=True)
-    night = models.CharField(
-        max_length=255, verbose_name='Наступление ночи', blank=True, null=True)
-    day = models.CharField(
-        max_length=255, verbose_name='Наступление дня', blank=True, null=True)
+class GameProcessJournal(models.Model):
+    '''Журнал процесса игры'''
+    inited_game = models.ForeignKey(
+        Game, on_delete=models.CASCADE, verbose_name='Инициированная игра')
+    player_in_game = models.ForeignKey(
+        User, on_delete=models.CASCADE, verbose_name='Игрок', related_name='player_in_game_journal')
+    voted = models.BooleanField(default=False, verbose_name='Проголосовал?')
+    selected_race = models.CharField(
+        max_length=255, choices=CREATURES, null=True, blank=True, verbose_name='Выбранная раса/существо')
+    selected_victim = models.ForeignKey(
+        User, on_delete=models.CASCADE, verbose_name='выбранная жертва', null=True, blank=True, related_name='selected_victim_journal')
+    current_buffs = models.ManyToManyField('Buff', blank=True,)
+    current_debuffs = models.ManyToManyField('Debuff', blank=True,)
 
     class Meta:
-        verbose_name = 'Сюжетный текст'
-        verbose_name_plural = 'Сюжетные тексты'
+        verbose_name = 'Журнал процесса игры'
+        verbose_name_plural = 'Журналы процесса игр'
 
     def __str__(self):
-        return 'Сюжетный текст'
+        return f'Журнал игры id - {self.inited_game.id}'
+
+
+class Buff(models.Model):
+    '''Баффы'''
+    key = models.CharField(max_length=255, verbose_name='Ключ')
+    name = models.CharField(max_length=255, verbose_name='Название баффа')
+    description = models.TextField(verbose_name='Описание баффа')
+
+    class Meta:
+        verbose_name = 'Бафф'
+        verbose_name_plural = 'Баффы'
+
+    def __str__(self):
+        return f'{self.key} - {self.name}'
+
+
+class Debuff(models.Model):
+    '''Дебаффы'''
+    key = models.CharField(max_length=255, verbose_name='Ключ')
+    name = models.CharField(max_length=255, verbose_name='Название дебаффа')
+    description = models.TextField(verbose_name='Описание дебаффа')
+
+    class Meta:
+        verbose_name = 'Дебафф'
+        verbose_name_plural = 'Дебаффы'
+
+    def __str__(self):
+        return f'{self.key} - {self.name}'

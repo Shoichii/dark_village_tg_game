@@ -43,7 +43,7 @@ async def check_access(msg, text='Игра не создана'):
     return True, game_info
 
 
-async def get_player_info(tg_id):
+async def get_player_tg_name_in_link(tg_id):
     '''Информация о игроке из телеграма по tg_id'''
     try:
         player = await bot.get_chat(tg_id)

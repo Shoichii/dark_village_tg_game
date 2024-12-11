@@ -1,6 +1,5 @@
 from bot.loader import bot
-from bot.db import common as db_common
-from bot.utils.keaboards.personal_kb import select_creature
+from bot.utils.handlers_funcs.c_commands_handlers import get_player_tg_name_in_link
 from utils.consts import CREATURES
 
 
@@ -27,24 +26,16 @@ async def get_werewolves(players):
     return [player for player in players if player.player_role == CREATURES[2][0]]
 
 
-async def send_to_vampires_poll_race_select(*args):
-    '''Выбор жертвы у вампиров - опрос'''
+def count_persons(persons):
+    '''Подсчёт количества членов расы
+    и выдача текстового сообщения
+    '''
 
-    vampires, humans, werewolves = args
-    text = '''Уничтожить псину или явиться к человеку?
-Выберите расу, чтобы сделать злобный кусь😈'''
-    kb = select_creature(vampires[0].tg_id)
+    persons_list_text = ''
+    persons_counter = 0
+    for i, human in enumerate(persons):
+        human_tg_name = get_player_tg_name_in_link(human.tg_id)
+        persons_list_text += f'{i+1}) {human_tg_name}\n'
+        persons_counter += 1
 
-    # если есть и люди и вампиры
-    if humans and werewolves:
-        # # если вампир пока один
-        # if len(vampires) == 1:
-        #     bot.send_message(vampires[0].tg_id, text, reply_markup=kb)
-        #     return True
-
-        # # если два вампира
-        # if len(vampires) == 2:
-        #     for vampire in vampires:
-        #         if
-        for vampire in vampires:
-            if len(vampires) == 2 and not vampire.player_role.boss:
+    return persons_counter, persons_list_text

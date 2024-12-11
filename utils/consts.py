@@ -21,3 +21,6 @@ CREATURES = (
     ('vampire', 'Вампир'),
     ('werewolf', 'Оборотень')
 )
+
+
+DEBUFFS_KEYS = ('infection',)

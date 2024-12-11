@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from base.models import Ability, Game, Role, User, StoryText
+from base.models import Ability, Buff, Debuff, Game, GameProcessJournal, Role, User
 
 
 @admin.register(User)
@@ -25,9 +25,9 @@ class RoleAdmin(admin.ModelAdmin):
 
 @admin.register(Ability)
 class AbilityAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'passive', 'damage', 'action_time')
-    list_filter = ('name', 'description', 'passive', 'damage', 'action_time')
-    search_fields = ('name', 'description', 'passive', 'damage', 'action_time')
+    list_display = ('name', 'description',)
+    list_filter = ('name', 'description',)
+    search_fields = ('name', 'description',)
 
 
 @admin.register(Game)
@@ -37,6 +37,23 @@ class GameAdmin(admin.ModelAdmin):
     search_fields = ('chat_id', 'creator', 'status', 'start_time', 'end_time')
 
 
-@admin.register(StoryText)
-class StoryTextAdmin(admin.ModelAdmin):
-    list_display = ('about_game_text',)
+@admin.register(GameProcessJournal)
+class GameProcessJournalAdmin(admin.ModelAdmin):
+    list_display = ('inited_game', 'player_in_game', 'voted',
+                    'selected_race', 'selected_victim')
+    list_filter = ('inited_game', 'player_in_game', 'voted',
+                   'selected_race', 'selected_victim')
+
+
+@admin.register(Buff)
+class BuffAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description',)
+    list_filter = ('name', 'description',)
+    search_fields = ('name', 'description',)
+
+
+@admin.register(Debuff)
+class DebuffAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description',)
+    list_filter = ('name', 'description',)
+    search_fields = ('name', 'description',)

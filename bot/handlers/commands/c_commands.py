@@ -4,9 +4,10 @@ from aiogram.filters import Command
 
 import bot.db.common as db_common
 from bot.loader import router, bot
-from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_info, get_role_info
+from bot.utils.handlers_funcs.c_commands_handlers import check_access, check_reg_and_commands, get_player_tg_name_in_link, get_role_info
 from bot.utils.handlers_funcs.p_commands_handlers import send_photo_to_pm
 from utils.consts import MIN_PLAYERS, STATUS
+from utils.story_texts import first_vampire_start_text, night_text, start_game_text
 
 
 ### команды в чат ###
@@ -131,7 +132,7 @@ async def start_game_handler(msg: types.Message):
             roles_data.get('human_boss'),
             roles_data.get('human_boss_abilities'))
     await send_photo_to_pm(human_boss_tg_id, human_boss_photo, caption=human_boss_decription)
-    human_boss_name = await get_player_info(human_boss_tg_id)
+    human_boss_name = await get_player_tg_name_in_link(human_boss_tg_id)
     await msg.answer(f'Игра началась\n\nСтароста деревни - {human_boss_name}')
 
     # сообщаем главному вампиру его роль
@@ -141,14 +142,16 @@ async def start_game_handler(msg: types.Message):
             roles_data.get('vampire_boss'),
             roles_data.get('vampire_boss_abilities'))
     await send_photo_to_pm(vampire_boss_tg_id, vampire_boss_photo, caption=vampire_boss_decription)
+    await asyncio.sleep(1)
+    await bot.send_message(vampire_boss_tg_id, first_vampire_start_text)
 
     # вступительные тексты
-    start_game_text = await db_common.get_start_text()
-    night_text = await db_common.get_night()
-    await asyncio.sleep(1)
     await msg.answer(start_game_text)
     await asyncio.sleep(1)
     await msg.answer(night_text)
+    await asyncio.sleep(1)
+
+    # отправляем вампирскую голосовалку
 
 
 @router.message(Command('quit_game'))
@@ -190,7 +193,7 @@ async def list_players_handler(msg: types.Message):
     players_info_list = 'Игроки в игре: \n\n'
     for i, player in enumerate(players):
         try:
-            player_name = await get_player_info(player.tg_id)
+            player_name = await get_player_tg_name_in_link(player.tg_id)
             creator = '- инициатор игры' if player.id == game_info.get(
                 'creator_tg_id') else ''
             players_info_list += f'{i + 1}) {player_name} {creator}\n'

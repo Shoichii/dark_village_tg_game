@@ -1,6 +1,6 @@
 from datetime import datetime
 from asgiref.sync import sync_to_async
-from base.models import User, Game, Role, StoryText
+from base.models import GameProcessJournal, User, Game, Role, StoryText
 from bot.utils.db import get_two_distinct_random_numbers
 from utils.consts import CREATURES, STATUS
 from django.db import transaction
@@ -40,6 +40,9 @@ def initialize_game(chat_tg_id, user_tg_id):
 @sync_to_async
 def stop_game(game):
     '''Отмена игры'''
+    GameProcessJournal.objects.filter(
+        inited_game=game
+    ).delete()
     game.status = STATUS[2][0]
     game.end_time = datetime.now()
     game.save()
@@ -56,7 +59,6 @@ def join_game(game, player):
 @sync_to_async
 def start_game(game):
     '''Начать игру'''
-
     # раздача ролей
     roles = Role.objects.all()
     boss_number, vampire_number = get_two_distinct_random_numbers(
@@ -78,6 +80,11 @@ def start_game(game):
                 boss=False, gender=player.gender).first()
             players_list.append(player)
         player.save()
+        # Запись игроков в журнал процесса игры
+        GameProcessJournal.objects.create(
+            inited_game=game,
+            player_in_game=player
+        )
 
     game.status = STATUS[4][0]
     game.save()
@@ -148,6 +155,9 @@ def delete_player(chat_id, player_tg_id):
     player = User.objects.filter(tg_id=player_tg_id).first()
     game = Game.objects.filter(chat_id=chat_id, players=player).exclude(
         status=STATUS[2][0]).first()
+    GameProcessJournal.objects.filter(
+        inited_game=game, player_in_game=player
+    ).delete()
 
     if game:
         game.players.remove(player)
@@ -157,28 +167,22 @@ def delete_player(chat_id, player_tg_id):
 
 
 @sync_to_async
-def get_rules():
-    '''Получить правила игры'''
-    story_text = StoryText.objects.first()
-    return story_text.rules_text if story_text else None
+def get_game_processes_info(game):
+    '''Получить информацию о процессе игры'''
+    game_process_info = GameProcessJournal.objects.filter(
+        inited_game=game).all()
 
+    game_info = []
+    for info in game_process_info:
+        game_info.append({
+            'id': info.id,
+            'inited_game': info.inited_game,
+            'player_in_game': info.player_in_game,
+            'voted': info.voted,
+            'selected_race': info.selected_race,
+            'selected_victim': info.selected_victim,
+            'current_buffs': [buff for buff in info.current_buffs.all()],
+            'current_debuffs': [debuff for debuff in info.current_debuffs.all()]
+        })
 
-@sync_to_async
-def get_about():
-    '''Получить инфу об игре'''
-    story_text = StoryText.objects.first()
-    return story_text.about_game_text if story_text else None
-
-
-@sync_to_async
-def get_start_text():
-    '''Получить текст при старте игры'''
-    story_text = StoryText.objects.first()
-    return story_text.start_game_text if story_text else None
-
-
-@sync_to_async
-def get_night():
-    '''Получить текст наступления ночи'''
-    story_text = StoryText.objects.first()
-    return story_text.night if story_text else None
+    return game_info
