@@ -22,5 +22,9 @@ CREATURES = (
     ('werewolf', 'Оборотень')
 )
 
+ACTIONS = (
+    ('infect', 'Заразить'),
+    ('kill', 'Убить')
+)
 
 DEBUFFS_KEYS = ('infection',)

@@ -39,9 +39,9 @@ class GameAdmin(admin.ModelAdmin):
 
 @admin.register(GameProcessJournal)
 class GameProcessJournalAdmin(admin.ModelAdmin):
-    list_display = ('inited_game', 'player_in_game', 'voted',
+    list_display = ('inited_game', 'player_in_game', 'voted', 'selected_action',
                     'selected_race', 'selected_victim')
-    list_filter = ('inited_game', 'player_in_game', 'voted',
+    list_filter = ('inited_game', 'player_in_game', 'voted', 'selected_action',
                    'selected_race', 'selected_victim')
 
 

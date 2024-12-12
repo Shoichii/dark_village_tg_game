@@ -25,6 +25,11 @@ from utils.story_texts import first_vampire_start_text, night_text, start_game_t
 @router.message(Command('init_game'))
 async def init_game_handler(msg: types.Message):
     '''Инициализация игр'''
+    # проверка, участвует ли игрок уже в другой игре
+    player_in_game_already = await db_common.one_player_one_game_check(msg.from_user.id)
+    if player_in_game_already:
+        await bot.send_message(msg.chat.id, text='Вы уже находитесь в другой игре')
+        return
 
     # проверка доступа к команде
     accept = await check_reg_and_commands(msg, msg.from_user.id, msg.chat.id)
@@ -66,6 +71,11 @@ async def stop_game_handler(msg: types.Message):
 @router.message(Command('join_game'))
 async def join_players(msg: types.Message):
     '''Присоединится к игре'''
+    # проверка, участвует ли игрок уже в другой игре
+    player_in_game_already = await db_common.one_player_one_game_check(msg.from_user.id)
+    if player_in_game_already:
+        await bot.send_message(msg.chat.id, text='Вы уже находитесь в другой игре')
+        return
 
     # проверка взаимодействия и доступа
     access = await check_access(msg, 'Игра не инициирована или уже началась')

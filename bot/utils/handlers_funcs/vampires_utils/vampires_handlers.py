@@ -58,5 +58,5 @@ async def send_to_vampires_poll_action_select(*args):
     return True
 
 
-async def send_to_vampires_poll_victim_select(*args):
-    '''Выбор жертвы у вампиров - опрос'''
+# async def send_to_vampires_poll_victim_select(*args):
+#     '''Выбор жертвы у вампиров - опрос'''

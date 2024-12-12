@@ -1,6 +1,7 @@
+from tabnanny import verbose
 from django.db import models
 
-from utils.consts import CREATURES, STATUS
+from utils.consts import ACTIONS, CREATURES, STATUS
 
 
 GENDER = (
@@ -113,12 +114,16 @@ class GameProcessJournal(models.Model):
     player_in_game = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='Игрок', related_name='player_in_game_journal')
     voted = models.BooleanField(default=False, verbose_name='Проголосовал?')
+    selected_action = models.CharField(
+        max_length=255, choices=ACTIONS, null=True, blank=True, verbose_name='Выбранное действие')
     selected_race = models.CharField(
         max_length=255, choices=CREATURES, null=True, blank=True, verbose_name='Выбранная раса/существо')
     selected_victim = models.ForeignKey(
         User, on_delete=models.CASCADE, verbose_name='выбранная жертва', null=True, blank=True, related_name='selected_victim_journal')
-    current_buffs = models.ManyToManyField('Buff', blank=True,)
-    current_debuffs = models.ManyToManyField('Debuff', blank=True,)
+    current_buffs = models.ManyToManyField(
+        'Buff', blank=True, verbose_name='Баффы')
+    current_debuffs = models.ManyToManyField(
+        'Debuff', blank=True, verbose_name='Дебаффы')
 
     class Meta:
         verbose_name = 'Журнал процесса игры'

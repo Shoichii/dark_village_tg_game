@@ -6,10 +6,14 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 import bot.db.common as db_common
+import bot.db.personal as db_personal
 from bot.loader import router
+from bot.utils.handlers_funcs.c_commands_handlers import get_player_tg_name_in_link
 from bot.utils.keaboards.common_kb import female_button, male_button, select_gender
 from bot.utils.other import date_pattern
 from bot.utils.states.ProfileDataState import ProfileDataState
+from bot.utils.keaboards.personal_kb import actions_buttons_data
+from collections import Counter
 
 
 ### команды в лс боту ###
@@ -68,3 +72,63 @@ async def set_birthday_handler(msg: types.Message, state: FSMContext):
     await db_common.create_new_user(msg.from_user.id, gender, birthday)
     await msg.answer('Регистрация завершена')
     await state.clear()
+
+
+@router.callback_query(lambda call: call.data in actions_buttons_data)
+async def select_action_dark_creatures_handler(call: types.CallbackQuery):
+    '''Получаем и записываем в бд, выбранное действие
+    для тёмных существ'''
+    await call.message.delete()
+
+    # сохраняем действие в бд
+    selected_action = call.data.split('_')[2]
+    await db_personal.set_selected_action(call.from_user.id, selected_action)
+
+    # узнаём, скольким осталось проголосовать
+    game_processes_info = await db_common.get_game_processes_info(user_tg_id=call.from_user.id)
+    player_role = next((game_process.get(
+        'player_in_game').player_role for game_process in game_processes_info if game_process.get(
+        'player_in_game').tg_id == call.from_user.id), None)
+    this_creatures = [game_process for game_process in game_processes_info if game_process.get(
+        'player_in_game').player_role == player_role[0]]
+    # если всего тёмных существ <= 2 то переходим к следующему действию
+    if len(this_creatures) <= 2:
+        # тут вызов опроса по жертве !!!!!!!!!!!!!!!!
+        return
+
+    # если больше 2
+    not_voted_players = []
+    selected_actions = []
+    for process_info in this_creatures:
+        # сколько и кто не проголосовал
+        if process_info.get('selected_action') is None:
+            player = process_info.get('player_in_game')
+            not_voted_players.append(player.tg_id)
+        # сколько проголосовало и за что
+        if process_info.get('selected_action') is not None:
+            selected_actions.append(process_info.get('selected_action'))
+
+    # если есть кто не проголосовал
+    if not_voted_players:
+        text = 'Ваш выбор принят. Ещё выбирают:\n\n'
+        for i, no_voted_player in enumerate(not_voted_players):
+            player_name = await get_player_tg_name_in_link(no_voted_player)
+            text += f'{i+1}) {player_name}\n'
+        await call.message.answer(text)
+        return
+
+    # если проголосовали все
+    if not not_voted_players:
+        # находим выбор с наибольшим количеством голосов
+        counts = Counter(selected_actions)
+        max_count = max(counts.values())
+        most_frequent = [action for action,
+                         count in counts.items() if count == max_count]
+        # если есть один вариант с большим кол-вом голосов
+        if len(most_frequent) == 1:
+            # тут вызов опроса по жертве !!!!!!!!!!!!!!!!
+            pass
+        # если несколько вариантов с одинаковым кол-вом голосов
+        else:
+            # выбор делает вожак в спорной ситуации !!!!!!!!!!!!!!!!
+            pass

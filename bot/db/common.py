@@ -1,6 +1,6 @@
 from datetime import datetime
 from asgiref.sync import sync_to_async
-from base.models import GameProcessJournal, User, Game, Role, StoryText
+from base.models import GameProcessJournal, User, Game, Role
 from bot.utils.db import get_two_distinct_random_numbers
 from utils.consts import CREATURES, STATUS
 from django.db import transaction
@@ -22,11 +22,21 @@ def create_new_user(tg_id, gender, birthday):
 
 
 @sync_to_async
+def one_player_one_game_check(user_tg_id):
+    '''Проверка. МОжно участвовать только в одной игре за раз'''
+    user = User.objects.filter(tg_id=user_tg_id).first()
+    game = Game.objects.filter(players=user).exclude(
+        status__in=(STATUS[2][0], STATUS[1][0])).first()
+
+    return game is not None
+
+
+@sync_to_async
 def initialize_game(chat_tg_id, user_tg_id):
     '''Инициализация игры'''
     user = User.objects.filter(tg_id=user_tg_id).first()
     game = Game.objects.filter(chat_id=chat_tg_id).exclude(
-        status=STATUS[2][0]).first()
+        status__in=(STATUS[2][0], STATUS[1][0])).first()
 
     if game:
         return False
@@ -154,7 +164,7 @@ def delete_player(chat_id, player_tg_id):
     '''Удаление игрока из игры'''
     player = User.objects.filter(tg_id=player_tg_id).first()
     game = Game.objects.filter(chat_id=chat_id, players=player).exclude(
-        status=STATUS[2][0]).first()
+        status__in=(STATUS[2][0], STATUS[1][0])).first()
     GameProcessJournal.objects.filter(
         inited_game=game, player_in_game=player
     ).delete()
@@ -167,10 +177,22 @@ def delete_player(chat_id, player_tg_id):
 
 
 @sync_to_async
-def get_game_processes_info(game):
+def get_game_processes_info(game=None, user_tg_id=None):
     '''Получить информацию о процессе игры'''
-    game_process_info = GameProcessJournal.objects.filter(
-        inited_game=game).all()
+    if not game and not user_tg_id:
+        raise ValueError(
+            "Должен быть передан хотя бы один параметр: game или user_tg_id")
+
+    if game:
+        game_process_info = GameProcessJournal.objects.filter(
+            inited_game=game).all()
+
+    if user_tg_id:
+        user = User.objects.filter(tg_id=user_tg_id).first()
+        game = Game.objects.filter(players=user).exclude(
+            status__in=(STATUS[2][0], STATUS[1][0])).first()
+        game_process_info = GameProcessJournal.objects.filter(
+            inited_game=game).all()
 
     game_info = []
     for info in game_process_info:
@@ -179,6 +201,7 @@ def get_game_processes_info(game):
             'inited_game': info.inited_game,
             'player_in_game': info.player_in_game,
             'voted': info.voted,
+            'selected_action': info.selected_action,
             'selected_race': info.selected_race,
             'selected_victim': info.selected_victim,
             'current_buffs': [buff for buff in info.current_buffs.all()],
