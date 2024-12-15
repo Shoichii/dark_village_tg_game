@@ -8,12 +8,12 @@ from aiogram.fsm.context import FSMContext
 import bot.db.common as db_common
 import bot.db.personal as db_personal
 from bot.loader import router
-from bot.utils.handlers_funcs.c_commands_handlers import get_player_tg_name_in_link
+from bot.utils.handlers_funcs.c_commands_handlers import calc_most_votes, get_player_tg_name_in_link
+from bot.utils.handlers_funcs.p_commands_handlers import get_humans, get_vampires, get_werewolves, send_to_dark_creatures_poll_victim_select
 from bot.utils.keaboards.common_kb import female_button, male_button, select_gender
 from bot.utils.other import date_pattern
 from bot.utils.states.ProfileDataState import ProfileDataState
 from bot.utils.keaboards.personal_kb import actions_buttons_data
-from collections import Counter
 
 
 ### команды в лс боту ###
@@ -85,16 +85,12 @@ async def select_action_dark_creatures_handler(call: types.CallbackQuery):
     await db_personal.set_selected_action(call.from_user.id, selected_action)
 
     # узнаём, скольким осталось проголосовать
-    game_processes_info = await db_common.get_game_processes_info(user_tg_id=call.from_user.id)
+    game_process_info = await db_common.get_game_process_info(user_tg_id=call.from_user.id)
     player_role = next((game_process.get(
-        'player_in_game').player_role for game_process in game_processes_info if game_process.get(
+        'player_in_game').player_role for game_process in game_process_info if game_process.get(
         'player_in_game').tg_id == call.from_user.id), None)
-    this_creatures = [game_process for game_process in game_processes_info if game_process.get(
+    this_creatures = [game_process for game_process in game_process_info if game_process.get(
         'player_in_game').player_role == player_role[0]]
-    # если всего тёмных существ <= 2 то переходим к следующему действию
-    if len(this_creatures) <= 2:
-        # тут вызов опроса по жертве !!!!!!!!!!!!!!!!
-        return
 
     # если больше 2
     not_voted_players = []
@@ -120,14 +116,17 @@ async def select_action_dark_creatures_handler(call: types.CallbackQuery):
     # если проголосовали все
     if not not_voted_players:
         # находим выбор с наибольшим количеством голосов
-        counts = Counter(selected_actions)
-        max_count = max(counts.values())
-        most_frequent = [action for action,
-                         count in counts.items() if count == max_count]
+        votes_result = calc_most_votes(selected_actions)
         # если есть один вариант с большим кол-вом голосов
-        if len(most_frequent) == 1:
-            # тут вызов опроса по жертве !!!!!!!!!!!!!!!!
-            pass
+        if len(votes_result) == 1:
+            # данные для опроса по жертве
+            players = [game_process.get('player_in_game')
+                       for game_process in game_process_info]
+            humans = get_humans(players)
+            vampires = get_vampires(players)
+            werewolves = get_werewolves(players)
+            poll_was_send = await send_to_dark_creatures_poll_victim_select(game_process_info,
+                                                                            humans, vampires, werewolves, player_role[0])
         # если несколько вариантов с одинаковым кол-вом голосов
         else:
             # выбор делает вожак в спорной ситуации !!!!!!!!!!!!!!!!

@@ -1,6 +1,17 @@
 from aiogram import types
 import bot.db.common as db_common
 from bot.loader import bot
+from collections import Counter
+
+
+async def calc_most_votes(votes):
+    '''Расчёт результата голосования
+    (варианты получившие наибольшее кол-во голосов)'''
+    counts = Counter(votes)
+    max_count = max(counts.values())
+    most_frequent = [action for action,
+                     count in counts.items() if count == max_count]
+    return most_frequent
 
 
 async def check_reg_and_commands(*args):

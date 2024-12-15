@@ -22,9 +22,15 @@ CREATURES = (
     ('werewolf', 'Оборотень')
 )
 
+# действия над жертвами
 ACTIONS = (
     ('infect', 'Заразить'),
     ('kill', 'Убить')
 )
 
+# ключи дебаффов
 DEBUFFS_KEYS = ('infection',)
+
+
+# количество жертв на выбор для голосования
+MAX_VOTE_VICTIMS = 3

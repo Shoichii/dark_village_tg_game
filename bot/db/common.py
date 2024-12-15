@@ -23,12 +23,12 @@ def create_new_user(tg_id, gender, birthday):
 
 @sync_to_async
 def one_player_one_game_check(user_tg_id):
-    '''Проверка. МОжно участвовать только в одной игре за раз'''
+    '''Проверка. Можно участвовать только в одной игре за раз'''
     user = User.objects.filter(tg_id=user_tg_id).first()
-    game = Game.objects.filter(players=user).exclude(
-        status__in=(STATUS[2][0], STATUS[1][0])).first()
+    game_process_entry = GameProcessJournal.objects.filter(
+        player_in_game=user).first()
 
-    return game is not None
+    return game_process_entry is not None
 
 
 @sync_to_async
@@ -177,7 +177,7 @@ def delete_player(chat_id, player_tg_id):
 
 
 @sync_to_async
-def get_game_processes_info(game=None, user_tg_id=None):
+def get_game_process_info(game=None, user_tg_id=None):
     '''Получить информацию о процессе игры'''
     if not game and not user_tg_id:
         raise ValueError(
