@@ -9,11 +9,11 @@ import bot.db.common as db_common
 import bot.db.personal as db_personal
 from bot.loader import router
 from bot.utils.handlers_funcs.c_commands_handlers import calc_most_votes, get_player_tg_name_in_link
-from bot.utils.handlers_funcs.p_commands_handlers import get_humans, get_vampires, get_werewolves, send_to_dark_creatures_poll_victim_select
+from bot.utils.handlers_funcs.p_commands_handlers import boss_vote, send_to_dark_creatures_poll_victim_select, vote_dark_creature_handler
 from bot.utils.keaboards.common_kb import female_button, male_button, select_gender
 from bot.utils.other import date_pattern
 from bot.utils.states.ProfileDataState import ProfileDataState
-from bot.utils.keaboards.personal_kb import actions_buttons_data
+from bot.utils.keaboards.personal_kb import actions_buttons_data, victims_buttons_data
 
 
 ### команды в лс боту ###
@@ -86,23 +86,7 @@ async def select_action_dark_creatures_handler(call: types.CallbackQuery):
 
     # узнаём, скольким осталось проголосовать
     game_process_info = await db_common.get_game_process_info(user_tg_id=call.from_user.id)
-    player_role = next((game_process.get(
-        'player_in_game').player_role for game_process in game_process_info if game_process.get(
-        'player_in_game').tg_id == call.from_user.id), None)
-    this_creatures = [game_process for game_process in game_process_info if game_process.get(
-        'player_in_game').player_role == player_role[0]]
-
-    # если больше 2
-    not_voted_players = []
-    selected_actions = []
-    for process_info in this_creatures:
-        # сколько и кто не проголосовал
-        if process_info.get('selected_action') is None:
-            player = process_info.get('player_in_game')
-            not_voted_players.append(player.tg_id)
-        # сколько проголосовало и за что
-        if process_info.get('selected_action') is not None:
-            selected_actions.append(process_info.get('selected_action'))
+    vote_targets, not_voted_players, player_creature = await vote_dark_creature_handler(game_process_info, call, 'selected_action')
 
     # если есть кто не проголосовал
     if not_voted_players:
@@ -116,18 +100,43 @@ async def select_action_dark_creatures_handler(call: types.CallbackQuery):
     # если проголосовали все
     if not not_voted_players:
         # находим выбор с наибольшим количеством голосов
-        votes_result = calc_most_votes(selected_actions)
+        votes_result = await calc_most_votes(vote_targets)
+        players = [game_process.get('player_in_game')
+                   for game_process in game_process_info]
+        humans, vampires, werewolves = await db_personal.get_role_creatures(players)
         # если есть один вариант с большим кол-вом голосов
         if len(votes_result) == 1:
             # данные для опроса по жертве
-            players = [game_process.get('player_in_game')
-                       for game_process in game_process_info]
-            humans = get_humans(players)
-            vampires = get_vampires(players)
-            werewolves = get_werewolves(players)
             poll_was_send = await send_to_dark_creatures_poll_victim_select(game_process_info,
-                                                                            humans, vampires, werewolves, player_role[0])
+                                                                            humans, vampires, werewolves, player_creature)
         # если несколько вариантов с одинаковым кол-вом голосов
         else:
-            # выбор делает вожак в спорной ситуации !!!!!!!!!!!!!!!!
+            vampire_boss = next(
+                (vampire for vampire in vampires if vampire.player_role.boss))
+            vampire_boss_tg_id = vampire_boss[0].tg_id
+            await boss_vote('test')  # отправка опроса боссу
             pass
+
+
+@router.callback_query(lambda call: call.data in victims_buttons_data)
+async def select_victim_dark_creatures_handler(call: types.CallbackQuery):
+    '''Получаем и записываем в бд, выбранную жертву
+    для тёмных существ'''
+    await call.message.delete()
+
+    # запись выбора в бд
+    victim_tg_id = call.data.split('_')[-1]
+    await db_personal.set_selected_victim(call.from_user.id, victim_tg_id)
+
+    # узнаём, скольким осталось проголосовать
+    game_process_info = await db_common.get_game_process_info(user_tg_id=call.from_user.id)
+    vote_targets, not_voted_players, player_creature = await vote_dark_creature_handler(game_process_info, call, 'selected_victim')
+
+    # если есть кто не проголосовал
+    if not_voted_players:
+        text = 'Ваш выбор принят. Ещё выбирают:\n\n'
+        for i, no_voted_player in enumerate(not_voted_players):
+            player_name = await get_player_tg_name_in_link(no_voted_player)
+            text += f'{i+1}) {player_name}\n'
+        await call.message.answer(text)
+        return

@@ -26,16 +26,7 @@ def select_action_kb():
 
 def select_victim_kb(victims):
     victims_numbers = len(victims)
-    inline_keyboard = [
-        [
-            types.InlineKeyboardButton(
-                text='Заразить',
-                callback_data=actions_buttons_data[0]),
-            types.InlineKeyboardButton(
-                text='Убить',
-                callback_data=actions_buttons_data[1]),
-        ]
-    ]
+    inline_keyboard = []
     kb_row = []
     for i, victim in enumerate(victims):
         kb_row.append(

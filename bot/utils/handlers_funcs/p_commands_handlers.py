@@ -1,7 +1,6 @@
 import random
 from bot.loader import bot
 from bot.utils.handlers_funcs.c_commands_handlers import calc_most_votes, get_player_tg_name_in_link
-from bot.utils.handlers_funcs.p_commands_handlers import count_persons
 from bot.utils.keaboards.personal_kb import select_action_kb, select_victim_kb
 from utils.consts import CREATURES, DEBUFFS_KEYS, MAX_VOTE_VICTIMS
 import bot.db.common as db_common
@@ -15,22 +14,7 @@ async def send_photo_to_pm(chat_id, photo, caption=None):
     await bot.send_photo(**kwargs)
 
 
-async def get_humans(players):
-    '''Получить живых людей'''
-    return [player for player in players if player.player_role == CREATURES[0][0]]
-
-
-async def get_vampires(players):
-    '''Получить живых вампиров'''
-    return [player for player in players if player.player_role == CREATURES[1][0]]
-
-
-async def get_werewolves(players):
-    '''Получить живых оборотней'''
-    return [player for player in players if player.player_role == CREATURES[2][0]]
-
-
-def count_persons(persons):
+async def count_persons(persons):
     '''Подсчёт количества членов расы
     и выдача текстового сообщения
     '''
@@ -38,7 +22,7 @@ def count_persons(persons):
     persons_list_text = ''
     persons_counter = 0
     for i, human in enumerate(persons):
-        human_tg_name = get_player_tg_name_in_link(human.tg_id)
+        human_tg_name = await get_player_tg_name_in_link(human.tg_id)
         persons_list_text += f'{i+1}) {human_tg_name}\n'
         persons_counter += 1
 
@@ -46,7 +30,7 @@ def count_persons(persons):
 
 
 async def send_to_dark_creatures_poll_action_select(*args):
-    '''Выбор жертвы у вампиров - опрос'''
+    '''Выбор жертвы у нечисти - опрос'''
     game_process_info, humans, vampires, werewolves, creature_is = args
 
     # если нечисть голодна, то опрос отменяется
@@ -73,7 +57,7 @@ async def send_to_dark_creatures_poll_action_select(*args):
     # формирование сообщение со списком жителей
     # для вампиров это оборотни и люди, исключая их самих
     # для оборотней это вампиры и люди
-    residents_counter, residents_list_text = count_persons(
+    residents_counter, residents_list_text = await count_persons(
         [*humans, *not_this_creature])
 
     text = f'''На данный момент в деревне {residents_counter} жителей:
@@ -118,7 +102,7 @@ async def send_to_dark_creatures_poll_victim_select(*args):
         werewolves_tg_ids = [werewolf.tg_id for werewolf in werewolves]
         race_votes = [game_info.selected_race for game_info in game_process_info if game_info.get(
             'player_in_game').tg_id in werewolves_tg_ids]
-        selected_race = calc_most_votes(race_votes)[0]
+        selected_race = await calc_most_votes(race_votes)[0]
         if selected_race == CREATURES[0][0]:
             potential_victims = [*humans]
         if selected_race == CREATURES[1][0]:
@@ -142,7 +126,7 @@ async def send_to_dark_creatures_poll_victim_select(*args):
     text = '''Выбирать нужно аккуратно, чтобы убийство прошло незаметно и не поднялся шум.
 Вот список, кто подойдёт Вам в этот раз. Выберите жертву.'''
     for i, poll_victim in enumerate(poll_victims):
-        poll_victim_tg_name = get_player_tg_name_in_link(poll_victim.tg_id)
+        poll_victim_tg_name = await get_player_tg_name_in_link(poll_victim.tg_id)
         text += f'{i+1}) {poll_victim_tg_name}\n'
     kb = select_victim_kb(poll_victim)
 
@@ -165,3 +149,35 @@ async def send_to_dark_creatures_poll_victim_select(*args):
             await bot.send_message(chat_id=this_creature.tg_id, text='Что вы хотите сделать?', reply_markup=kb)
     # опрос задан
     return True
+
+
+async def vote_dark_creature_handler(game_process_info, call, vote_target):
+    '''Обработка голосований по действию и выбору жертвы
+    vote_target: selected_action || selected_victim'''
+
+    player_creature = next((game_process.get(
+        'player_creature') for game_process in game_process_info if game_process.get(
+        'player_tg_id') == call.from_user.id), None)
+    this_creatures = [game_process for game_process in game_process_info if game_process.get(
+        'player_creature') == player_creature]
+
+    # если больше 2
+    not_voted_players = []
+    vote_targets = []
+    for process_info in this_creatures:
+        # сколько и кто не проголосовал
+        if process_info.get(vote_target) is None:
+            player = process_info.get('player_in_game')
+            not_voted_players.append(player.tg_id)
+        # сколько проголосовало и за что
+        if process_info.get(vote_target) is not None:
+            vote_targets.append(process_info.get(vote_target))
+
+    return vote_targets, not_voted_players, player_creature
+
+
+async def boss_vote(variants):
+    '''Голосование только для боссов
+    в спорных моментах'''
+    print(variants)
+    pass

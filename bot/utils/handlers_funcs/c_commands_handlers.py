@@ -73,27 +73,20 @@ async def get_role_info(role, role_abilities):
     abilities_text = ''
     if role_abilities:
         for i, ability in enumerate(role_abilities):
-            passive = 'Активная' if ability.passive else 'Пассивная'
-            abilities_text += f'''{i+1}) {ability.name} - {passive}
-Урон - {ability.damage}
-Время действия - {ability.action_time}
-
-Описание.
+            abilities_text += f'''<b>{i+1}) {ability.name}</b>
 {ability.description}
 
 '''
 
     # описание роли
     boss = '\n<b>Уровень Босс</b>' if role.player_role.boss else ''
-    role_decription = f'''{role.player_role.name}
+    role_decription = f'''Ваша роль: {role.player_role.name}
 {boss}
 <b>Раса:</b> {role.player_role.get_creature_display()}
 <b>Способности:</b>
 {abilities_text}
 
-<b>Описание:</b>
+<b>Описание роли:</b>
 {role.player_role.description}
-
-Это ваша роль.
 '''
     return role_decription, photo, role.tg_id

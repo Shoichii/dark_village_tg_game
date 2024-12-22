@@ -3,12 +3,12 @@ from aiogram import types
 from aiogram.filters import Command
 
 import bot.db.common as db_common
+import bot.db.personal as db_personal
 from bot.loader import router, bot
 from bot.utils.handlers_funcs.c_commands_handlers import (
     check_access, check_reg_and_commands, get_player_tg_name_in_link, get_role_info)
 from bot.utils.handlers_funcs.p_commands_handlers import (
-    get_humans, get_vampires, get_werewolves, send_photo_to_pm, send_to_dark_creatures_poll_action_select, send_to_dark_creatures_poll_victim_select)
-import bot.utils.handlers_funcs.vampires_utils.werewolves_handlers
+    send_photo_to_pm, send_to_dark_creatures_poll_action_select, send_to_dark_creatures_poll_victim_select)
 from utils.consts import CREATURES, MIN_PLAYERS, STATUS
 from utils.story_texts import first_vampire_start_text, night_text, start_game_text
 
@@ -170,10 +170,8 @@ async def start_game_handler(msg: types.Message):
     game_process_info = await db_common.get_game_process_info(game)
     players = [game_process.get('player_in_game')
                for game_process in game_process_info]
-    humans = get_humans(players)
-    vampires = get_vampires(players)
-    werewolves = get_werewolves(players)
-    poll_was_send = send_to_dark_creatures_poll_action_select(
+    humans, vampires, werewolves = await db_personal.get_role_creatures(players)
+    poll_was_send = await send_to_dark_creatures_poll_action_select(
         game_process_info, humans, vampires, werewolves, CREATURES[1][0])
 
     # если опрос заразить/убить
